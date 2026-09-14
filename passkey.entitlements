@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+    "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!-- No special entitlements needed for biometric Keychain access in a CLI tool.
+     The SecAccessControl flags on the Keychain item itself enforce Touch ID.
+     Add com.apple.security.app-sandbox only if you sandbox the binary later. -->
+<dict/>
+</plist>
