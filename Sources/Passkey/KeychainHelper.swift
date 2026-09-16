@@ -33,27 +33,33 @@ enum KeychainError: Error, CustomStringConvertible {
 }
 
 enum KeychainHelper {
-  static func store(password: String, service: String, account: String) throws {
-    let deleteQuery: [String: Any] = [
+  static func store(password: String, service: String, account: String, keychain: SecKeychain? = nil) throws {
+    var deleteQuery: [String: Any] = [
       kSecClass as String: kSecClassGenericPassword,
       kSecAttrService as String: service,
       kSecAttrAccount as String: account,
     ]
+    if let kc = keychain {
+      deleteQuery[kSecUseKeychain as String] = kc
+    }
     SecItemDelete(deleteQuery as CFDictionary)
 
-    let addQuery: [String: Any] = [
+    var addQuery: [String: Any] = [
       kSecClass as String: kSecClassGenericPassword,
       kSecAttrService as String: service,
       kSecAttrAccount as String: account,
       kSecValueData as String: Data(password.utf8),
       kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
     ]
+    if let kc = keychain {
+      addQuery[kSecUseKeychain as String] = kc
+    }
     let status = SecItemAdd(addQuery as CFDictionary, nil)
     guard status == errSecSuccess else { throw KeychainError.osStatus(status) }
   }
 
   // Blocks the calling thread while macOS shows the Touch ID sheet, then reads keychain.
-  static func fetch(service: String, account: String, reason: String) throws -> String {
+  static func fetch(service: String, account: String, reason: String, keychain: SecKeychain? = nil) throws -> String {
     let ctx = LAContext()
     var canError: NSError?
     // NOTE: .deviceOwnerAuthenticationWithBiometrics will reject password authentication
@@ -71,13 +77,17 @@ enum KeychainHelper {
     sema.wait()
     if let e = authError { throw KeychainError.authFailed(e) }
 
-    let query: [String: Any] = [
+    var query: [String: Any] = [
       kSecClass as String: kSecClassGenericPassword,
       kSecAttrService as String: service,
       kSecAttrAccount as String: account,
       kSecReturnData as String: true,
       kSecMatchLimit as String: kSecMatchLimitOne,
     ]
+    if let kc = keychain {
+      query[kSecUseKeychain as String] = kc
+      query[kSecMatchSearchList as String] = [kc]
+    }
     var result: AnyObject?
     let status = SecItemCopyMatching(query as CFDictionary, &result)
     switch status {
@@ -93,12 +103,16 @@ enum KeychainHelper {
     }
   }
 
-  static func delete(service: String, account: String) throws {
-    let query: [String: Any] = [
+  static func delete(service: String, account: String, keychain: SecKeychain? = nil) throws {
+    var query: [String: Any] = [
       kSecClass as String: kSecClassGenericPassword,
       kSecAttrService as String: service,
       kSecAttrAccount as String: account,
     ]
+    if let kc = keychain {
+      query[kSecUseKeychain as String] = kc
+      query[kSecMatchSearchList as String] = [kc]
+    }
     let status = SecItemDelete(query as CFDictionary)
     guard status == errSecSuccess || status == errSecItemNotFound else {
       throw KeychainError.osStatus(status)
